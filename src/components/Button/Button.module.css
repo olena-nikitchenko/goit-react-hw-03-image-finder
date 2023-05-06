@@ -1,0 +1,15 @@
+﻿.Button {
+  display: block;
+  margin: 20px auto;
+  padding: 15px;
+  font-size: 20px;
+  border-radius: 5px;
+  border: none;
+  background-color: var(--bg-btn-color);
+  color: var(--text-btn-color);
+  cursor: pointer;
+}
+.Button:hover {
+  background-color: var(--bg-btn-color-hover);
+  color: var(--text-btn-hover);
+}
