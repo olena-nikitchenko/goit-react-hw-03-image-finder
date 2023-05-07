@@ -1,29 +1,27 @@
 import React, { Component } from 'react';
 import Notiflix from 'notiflix';
-import { ImageApi } from './ImageApi/ImageApi';
+import { ImageApi } from '../sarvices/ImageApi';
 import Searchbar from './Searchbar';
 import ImageGallery from './ImageGallery';
 import Loader from './Loader';
 import Button from './Button';
 import './App.css';
 
-let page = 1;
-
 class App extends Component {
   state = {
     inputData: '',
     items: [],
-
     status: 'idle',
     totalHits: 0,
+    page: 1,
   };
-
-  handleSubmit = async inputData => {
-    page = 1;
-    if (inputData.trim() === '') {
-      Notiflix.Notify.info('You cannot search by empty field, try again.');
-      return;
-    } else {
+  async componentDidUpdate(prevProps, prevState) {
+    const { inputData, page } = this.state;
+    if (prevState.inputData !== inputData || prevState.page !== page) {
+      if (inputData.trim() === '') {
+        Notiflix.Notify.info('You cannot search by empty field, try again.');
+        return;
+      }
       try {
         this.setState({ status: 'pending' });
         const { totalHits, hits } = await ImageApi(inputData, page);
@@ -33,10 +31,14 @@ class App extends Component {
             'Sorry, there are no images matching your search query. Please try again.'
           );
         } else {
+          const newHits = hits.map(({ id, webformatURL, largeImageURL }) => ({
+            id,
+            webformatURL,
+            largeImageURL,
+          }));
           this.setState({
-            items: hits,
-            inputData,
-            totalHits: totalHits,
+            items: [...this.state.items, ...newHits],
+            totalHits,
             status: 'resolved',
           });
         }
@@ -44,58 +46,35 @@ class App extends Component {
         this.setState({ status: 'rejected' });
       }
     }
+  }
+  handleSubmit = inputData => {
+    this.setState({ inputData, page: 1 });
   };
-  onNextPage = async () => {
-    this.setState({ status: 'pending' });
 
-    try {
-      const { hits } = await ImageApi(this.state.inputData, (page += 1));
-      this.setState(prevState => ({
-        items: [...prevState.items, ...hits],
-        status: 'resolved',
-      }));
-    } catch (error) {
-      this.setState({ status: 'rejected' });
-    }
+  handleNextPage = () => {
+    this.setState(prevState => ({ page: prevState.page + 1 }));
   };
+
   render() {
     const { totalHits, status, items } = this.state;
-    if (status === 'idle') {
-      return (
-        <div className="App">
-          <Searchbar onSubmit={this.handleSubmit} />
-        </div>
-      );
-    }
-    if (status === 'pending') {
-      return (
-        <div className="App">
-          <Searchbar onSubmit={this.handleSubmit} />
-          <ImageGallery page={page} items={this.state.items} />
-          <Loader />
-          {totalHits > 12 && <Button onClick={this.onNextPage} />}
-        </div>
-      );
-    }
-    if (status === 'rejected') {
-      return (
-        <div className="App">
-          <Searchbar onSubmit={this.handleSubmit} />
-          <p>Something wrong, try later</p>
-        </div>
-      );
-    }
-    if (status === 'resolved') {
-      return (
-        <div className="App">
-          <Searchbar onSubmit={this.handleSubmit} />
-          <ImageGallery page={page} items={this.state.items} />
-          {totalHits > 12 && totalHits > items.length && (
-            <Button onClick={this.onNextPage} />
-          )}
-        </div>
-      );
-    }
+    return (
+      <div className="App">
+        <Searchbar onSubmit={this.handleSubmit} />
+        {status === 'resolved' && (
+          <>
+            <ImageGallery items={items} />
+            {totalHits > items.length && (
+              <Button onClick={this.handleNextPage}>Load more</Button>
+            )}
+          </>
+        )}
+        {status === 'pending' && <Loader />}
+        {status === 'rejected' && (
+          <p>Something went wrong, please try again later</p>
+        )}
+      </div>
+    );
   }
 }
+
 export default App;
